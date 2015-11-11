@@ -1,0 +1,39 @@
+---
+- name: Wait for port {{ jenkins_port }} availability
+  wait_for: port={{ jenkins_port }} timeout=60
+  tags:
+    - jenkins
+    - plugin
+
+- name: Install git
+  yum: name=git state=latest update_cache=yes
+  tags:
+    - jenkins
+    - plugin
+
+- name: Get jenkins cli
+  get_url: url={{ jenkins_cli_url }} dest={{ jenkins_cli_dest }}
+  register: jenkins_cli_geted_result
+  until: jenkins_cli_geted_result.msg.find("Request failed") == -1
+  retries: 5
+  delay: 10
+  tags:
+    - jenkins
+    - plugin
+
+- name: Wait for {{ jenkins_updates_json_path }} to exist
+  wait_for: path={{ jenkins_updates_json_path }} timeout=180
+  tags:
+    - jenkins
+    - plugin
+
+- name: Install git plugin
+  command: java  -jar {{ jenkins_cli_dest }} -s http://{{ jenkins_host_name }}:{{ jenkins_port }} install-plugin git
+  register: git_plugin_installed_result
+  until: git_plugin_installed_result.stderr = ""
+  retries: 5
+  delay: 10
+  notify: restart jenkins
+  tags:
+    - jenkins
+    - plugin
